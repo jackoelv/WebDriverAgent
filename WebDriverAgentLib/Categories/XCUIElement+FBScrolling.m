@@ -85,20 +85,25 @@ const CGFloat FBMinimumTouchEventDelay = 0.1f;
 
 - (BOOL)fb_scrollToVisibleWithNormalizedScrollDistance:(CGFloat)normalizedScrollDistance scrollDirection:(FBXCUIElementScrollDirection)scrollDirection error:(NSError **)error
 {
+  __block NSArray<XCElementSnapshot *> *cellSnapshots, *visibleCellSnapshots;
+  NSArray *acceptedParents;
+  XCElementSnapshot *elementSnapshot;
+  XCElementSnapshot *scrollView;
+  XCElementSnapshot *targetCellSnapshot;
   [self resolve];
   if (self.fb_isVisible) {
     return YES;
   }
-  __block NSArray<XCElementSnapshot *> *cellSnapshots, *visibleCellSnapshots;
+  
 
-  NSArray *acceptedParents = @[
+  acceptedParents = @[
                                @(XCUIElementTypeScrollView),
                                @(XCUIElementTypeCollectionView),
                                @(XCUIElementTypeTable),
                                @(XCUIElementTypeWebView),
                                ];
-  XCElementSnapshot *elementSnapshot = self.fb_lastSnapshot;
-  XCElementSnapshot *scrollView = [elementSnapshot fb_parentMatchingOneOfTypes:acceptedParents
+  elementSnapshot = self.fb_lastSnapshot;
+  scrollView = [elementSnapshot fb_parentMatchingOneOfTypes:acceptedParents
       filter:^(XCElementSnapshot *snapshot) {
 
          if (![snapshot isWDVisible]) {
@@ -122,7 +127,7 @@ const CGFloat FBMinimumTouchEventDelay = 0.1f;
      buildError:error];
   }
 
-  XCElementSnapshot *targetCellSnapshot = [elementSnapshot fb_parentCellSnapshot];
+  targetCellSnapshot = [elementSnapshot fb_parentCellSnapshot];
 
   XCElementSnapshot *lastSnapshot = visibleCellSnapshots.lastObject;
   // Can't just do indexOfObject, because targetCellSnapshot may represent the same object represented by a member of cellSnapshots, yet be a different object

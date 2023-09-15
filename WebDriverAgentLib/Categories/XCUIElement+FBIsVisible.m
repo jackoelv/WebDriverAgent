@@ -40,12 +40,24 @@
   if ([FBConfiguration shouldUseTestManagerForVisibilityDetection]) {
     return [(NSNumber *)[self fb_attributeValue:FB_XCAXAIsVisibleAttribute] boolValue];
   }
-  CGRect appFrame = [self fb_rootElement].frame;
-  CGSize screenSize = FBAdjustDimensionsForApplication(appFrame.size, self.application.interfaceOrientation);
-  CGRect screenFrame = CGRectMake(0, 0, screenSize.width, screenSize.height);
+  CGRect appFrame;
+  CGSize screenSize;
+  CGRect screenFrame;
+
+  appFrame = [self fb_rootElement].frame;
+  screenSize = FBAdjustDimensionsForApplication(appFrame.size, self.application.interfaceOrientation);
+  screenFrame = CGRectMake(0, 0, screenSize.width, screenSize.height);
+
   if (!CGRectIntersectsRect(frame, screenFrame)) {
     return NO;
   }
+
+//  CGRect appFrame = [self fb_rootElement].frame;
+//  CGSize screenSize = FBAdjustDimensionsForApplication(appFrame.size, self.application.interfaceOrientation);
+//  CGRect screenFrame = CGRectMake(0, 0, screenSize.width, screenSize.height);
+//  if (!CGRectIntersectsRect(frame, screenFrame)) {
+//    return NO;
+//  }
   CGPoint midPoint = [self.suggestedHitpoints.lastObject CGPointValue];
   XCElementSnapshot *hitElement = [self hitTest:midPoint];
   if (self == hitElement || [self._allDescendants.copy containsObject:hitElement]) {

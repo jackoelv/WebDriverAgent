@@ -49,8 +49,9 @@ const CGFloat FBTapDuration = 0.01f;
 
 - (BOOL)fb_performTapAtPoint:(CGPoint)hitPoint error:(NSError *__autoreleasing*)error
 {
-  [self fb_waitUntilFrameIsStable];
   __block BOOL didSucceed;
+  [self fb_waitUntilFrameIsStable];
+
   [FBRunLoopSpinner spinUntilCompletion:^(void(^completion)(void)){
     XCEventGeneratorHandler handlerBlock = ^(XCSynthesizedEventRecord *record, NSError *commandError) {
       if (commandError) {
@@ -73,17 +74,24 @@ const CGFloat FBTapDuration = 0.01f;
 
 - (XCSynthesizedEventRecord *)fb_generateTapEvent:(CGPoint)hitPoint orientation:(UIInterfaceOrientation)orientation
 {
+  XCSynthesizedEventRecord *event;
   XCPointerEventPath *eventPath = [[XCPointerEventPath alloc] initForTouchAtPoint:hitPoint offset:0.0];
   [eventPath liftUpAtOffset:FBTapDuration];
   if (![XCTRunnerDaemonSession sharedSession].useLegacyEventCoordinateTransformationPath) {
     orientation = UIInterfaceOrientationPortrait;
   }
-  XCSynthesizedEventRecord *event =
-  [[XCSynthesizedEventRecord alloc]
-   initWithName:[NSString stringWithFormat:@"Tap on %@", NSStringFromCGPoint(hitPoint)]
-   interfaceOrientation:orientation];
+
+  event = [[XCSynthesizedEventRecord alloc]
+           initWithName:[NSString stringWithFormat:@"Tap on %@", NSStringFromCGPoint(hitPoint)]
+           interfaceOrientation:orientation];
   [event addPointerEventPath:eventPath];
   return event;
+//  XCSynthesizedEventRecord *event =
+//  [[XCSynthesizedEventRecord alloc]
+//   initWithName:[NSString stringWithFormat:@"Tap on %@", NSStringFromCGPoint(hitPoint)]
+//   interfaceOrientation:orientation];
+//  [event addPointerEventPath:eventPath];
+//  return event;
 }
 
 @end

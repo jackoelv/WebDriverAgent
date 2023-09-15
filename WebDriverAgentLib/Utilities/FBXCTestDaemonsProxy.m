@@ -18,12 +18,13 @@
 {
   static id<XCTestManager_ManagerInterface> proxy = nil;
   static dispatch_once_t onceToken;
+  __block Class runnerClass;
   dispatch_once(&onceToken, ^{
     if ([[XCTestDriver sharedTestDriver] respondsToSelector:@selector(managerProxy)]) {
       proxy = [XCTestDriver sharedTestDriver].managerProxy;
       return;
     }
-    Class runnerClass = objc_lookUpClass("XCTRunnerDaemonSession");
+    runnerClass = objc_lookUpClass("XCTRunnerDaemonSession");
     proxy = ((XCTRunnerDaemonSession *)[runnerClass sharedSession]).daemonProxy;
   });
   NSAssert(proxy != NULL, @"Could not determin testRunnerProxy", proxy);

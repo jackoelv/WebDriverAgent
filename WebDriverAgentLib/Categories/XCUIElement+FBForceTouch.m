@@ -48,8 +48,9 @@
 
 - (BOOL)fb_performFourceTouchAtPoint:(CGPoint)hitPoint pressure:(double)pressure duration:(double)duration error:(NSError *__autoreleasing*)error
 {
-  [self fb_waitUntilFrameIsStable];
   __block BOOL didSucceed;
+  [self fb_waitUntilFrameIsStable];
+
   [FBRunLoopSpinner spinUntilCompletion:^(void(^completion)(void)){
     XCEventGeneratorHandler handlerBlock = ^(XCSynthesizedEventRecord *record, NSError *commandError) {
       if (commandError) {
@@ -72,13 +73,14 @@
 
 - (XCSynthesizedEventRecord *)fb_generateForceTouchEvent:(CGPoint)hitPoint pressure:(double)pressure duration:(double)duration orientation:(UIInterfaceOrientation)orientation
 {
+  XCSynthesizedEventRecord *event;
   XCPointerEventPath *eventPath = [[XCPointerEventPath alloc] initForTouchAtPoint:hitPoint offset:0.0];
   [eventPath pressDownWithPressure:pressure atOffset:0.0];
   if (![XCTRunnerDaemonSession sharedSession].useLegacyEventCoordinateTransformationPath) {
     orientation = UIInterfaceOrientationPortrait;
   }
   [eventPath liftUpAtOffset:duration];
-  XCSynthesizedEventRecord *event =
+  event =
   [[XCSynthesizedEventRecord alloc]
    initWithName:[NSString stringWithFormat:@"Force touch on %@", NSStringFromCGPoint(hitPoint)]
    interfaceOrientation:orientation];

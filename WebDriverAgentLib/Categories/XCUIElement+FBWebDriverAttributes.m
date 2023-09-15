@@ -110,6 +110,9 @@
   // Special cases:
   // Table view cell: we consider it accessible if it's container is accessible
   // Text fields: actual accessible element isn't text field itself, but nested element
+  XCElementSnapshot *parentSnapshot;
+  parentSnapshot = self.parent;
+  
   if (self.elementType == XCUIElementTypeCell) {
     if (!self.fb_isAccessibilityElement) {
       XCElementSnapshot *containerView = [[self children] firstObject];
@@ -122,7 +125,8 @@
       return NO;
     }
   }
-  XCElementSnapshot *parentSnapshot = self.parent;
+
+//  XCElementSnapshot *parentSnapshot = self.parent;
   while (parentSnapshot) {
     // In the scenario when table provides Search results controller, table could be marked as accessible element, even though it isn't
     // As it is highly unlikely that table view should ever be an accessibility element itself,

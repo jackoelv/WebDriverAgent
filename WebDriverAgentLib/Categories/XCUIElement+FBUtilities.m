@@ -29,18 +29,19 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
 
 - (BOOL)fb_waitUntilFrameIsStable
 {
+  // Declare all variables at the top of the block
   __block CGRect frame;
+  __block BOOL isSameFrame;
+  
   // Initial wait
   [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
-  return
-  [[[FBRunLoopSpinner new]
-     timeout:10.]
-   spinUntilTrue:^BOOL{
-     [self resolve];
-     const BOOL isSameFrame = FBRectFuzzyEqualToRect(self.wdFrame, frame, FBDefaultFrameFuzzyThreshold);
-     frame = self.wdFrame;
-     return isSameFrame;
-   }];
+  
+  return [[[FBRunLoopSpinner new] timeout:10.] spinUntilTrue:^BOOL{
+    [self resolve];
+    isSameFrame = FBRectFuzzyEqualToRect(self.wdFrame, frame, FBDefaultFrameFuzzyThreshold);
+    frame = self.wdFrame;
+    return isSameFrame;
+  }];
 }
 
 - (BOOL)fb_isObstructedByAlert
@@ -50,11 +51,14 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
 
 - (BOOL)fb_obstructsElement:(XCUIElement *)element
 {
+  XCElementSnapshot *snapshot;
+  XCElementSnapshot *elementSnapshot;
   if (!self.exists) {
     return NO;
   }
-  XCElementSnapshot *snapshot = self.fb_lastSnapshot;
-  XCElementSnapshot *elementSnapshot = element.fb_lastSnapshot;
+  
+  snapshot = self.fb_lastSnapshot;
+  elementSnapshot = element.fb_lastSnapshot;
   if ([snapshot _isAncestorOfElement:elementSnapshot]) {
     return NO;
   }
@@ -72,23 +76,30 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
 
 - (NSArray<XCUIElement *> *)fb_filterDescendantsWithSnapshots:(NSArray<XCElementSnapshot *> *)snapshots
 {
+  NSArray<NSNumber *> *matchedUids;
+  NSMutableArray<XCUIElement *> *matchedElements;
+  NSArray<NSNumber *> *uniqueTypes;
+  XCUIElementType type;
+  XCUIElementQuery *query;
+  NSMutableArray<XCUIElement *> *sortedElements;
+  
   if (0 == snapshots.count) {
     return @[];
   }
-  NSArray<NSNumber *> *matchedUids = [snapshots valueForKey:FBStringify(XCUIElement, wdUID)];
-  NSMutableArray<XCUIElement *> *matchedElements = [NSMutableArray array];
+  matchedUids = [snapshots valueForKey:FBStringify(XCUIElement, wdUID)];
+  matchedElements = [NSMutableArray array];
   if ([matchedUids containsObject:@(self.wdUID)]) {
     if (1 == snapshots.count) {
       return @[self];
     }
     [matchedElements addObject:self];
   }
-  XCUIElementType type = XCUIElementTypeAny;
-  NSArray<NSNumber *> *uniqueTypes = [snapshots valueForKeyPath:[NSString stringWithFormat:@"@distinctUnionOfObjects.%@", FBStringify(XCUIElement, elementType)]];
+  type = XCUIElementTypeAny;
+  uniqueTypes = [snapshots valueForKeyPath:[NSString stringWithFormat:@"@distinctUnionOfObjects.%@", FBStringify(XCUIElement, elementType)]];
   if (uniqueTypes && [uniqueTypes count] == 1) {
     type = [uniqueTypes.firstObject intValue];
   }
-  XCUIElementQuery *query = [[self descendantsMatchingType:type] matchingPredicate:[FBPredicate predicateWithFormat:@"%K IN %@", FBStringify(XCUIElement, wdUID), matchedUids]];
+  query = [[self descendantsMatchingType:type] matchingPredicate:[FBPredicate predicateWithFormat:@"%K IN %@", FBStringify(XCUIElement, wdUID), matchedUids]];
   if (1 == snapshots.count) {
     XCUIElement *result = query.fb_firstMatch;
     return result ? @[result] : @[];
@@ -98,7 +109,7 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
     // There is no need to sort elements if count of matches is not greater than one
     return matchedElements.copy;
   }
-  NSMutableArray<XCUIElement *> *sortedElements = [NSMutableArray array];
+  sortedElements = [NSMutableArray array];
   [snapshots enumerateObjectsUsingBlock:^(XCElementSnapshot *snapshot, NSUInteger snapshotIdx, BOOL *stopSnapshotEnum) {
     XCUIElement *matchedElement = nil;
     for (XCUIElement *element in matchedElements) {
@@ -117,10 +128,13 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
 
 - (BOOL)fb_waitUntilSnapshotIsStable
 {
+  dispatch_time_t timeout;
   dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+  BOOL result;
   [[XCAXClient_iOS sharedClient] notifyWhenNoAnimationsAreActiveForApplication:self.application reply:^{dispatch_semaphore_signal(sem);}];
-  dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(FBANIMATION_TIMEOUT * NSEC_PER_SEC));
-  BOOL result = 0 == dispatch_semaphore_wait(sem, timeout);
+  timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(FBANIMATION_TIMEOUT * NSEC_PER_SEC));
+
+  result = 0 == dispatch_semaphore_wait(sem, timeout);
   if (!result) {
     [FBLogger logFmt:@"There are still some active animations in progress after %.2f seconds timeout. Visibility detection may cause unexpected delays.", FBANIMATION_TIMEOUT];
   }
@@ -129,6 +143,15 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
 
 - (NSData *)fb_screenshotWithError:(NSError **)error
 {
+  Class xcScreenClass;
+  XCUIScreen *mainScreen;
+  NSData *result;
+  UIImage *image;
+  UIInterfaceOrientation orientation;
+  UIImageOrientation imageOrientation;
+  CGSize size;
+  UIImage *fixedImage;
+  
   if (CGRectIsEmpty(self.frame)) {
     if (error) {
       *error = [[FBErrorBuilder.builder withDescription:@"Cannot get a screenshot of zero-sized element"] build];
@@ -136,7 +159,7 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
     return nil;
   }
 
-  Class xcScreenClass = objc_lookUpClass("XCUIScreen");
+  xcScreenClass = objc_lookUpClass("XCUIScreen");
   if (nil == xcScreenClass) {
     if (error) {
       *error = [[FBErrorBuilder.builder withDescription:@"Element screenshots are only available since Xcode9 SDK"] build];
@@ -144,15 +167,15 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
     return nil;
   }
 
-  XCUIScreen *mainScreen = (XCUIScreen *)[xcScreenClass mainScreen];
-  NSData *result = [mainScreen screenshotDataForQuality:1 rect:self.frame error:error];
+  mainScreen = (XCUIScreen *)[xcScreenClass mainScreen];
+  result = [mainScreen screenshotDataForQuality:1 rect:self.frame error:error];
   if (nil == result) {
     return nil;
   }
 
-  UIImage *image = [UIImage imageWithData:result];
-  UIInterfaceOrientation orientation = self.application.interfaceOrientation;
-  UIImageOrientation imageOrientation = UIImageOrientationUp;
+  image = [UIImage imageWithData:result];
+  orientation = self.application.interfaceOrientation;
+  imageOrientation = UIImageOrientationUp;
   // The received element screenshot will be rotated, if the current interface orientation differs from portrait, so we need to fix that first
   if (orientation == UIInterfaceOrientationLandscapeRight) {
     imageOrientation = UIImageOrientationLeft;
@@ -161,10 +184,10 @@ static const NSTimeInterval FBANIMATION_TIMEOUT = 5.0;
   } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
     imageOrientation = UIImageOrientationDown;
   }
-  CGSize size = image.size;
+  size = image.size;
   UIGraphicsBeginImageContext(CGSizeMake(size.width, size.height));
   [[UIImage imageWithCGImage:(CGImageRef)[image CGImage] scale:1.0 orientation:imageOrientation] drawInRect:CGRectMake(0, 0, size.width, size.height)];
-  UIImage *fixedImage = UIGraphicsGetImageFromCurrentImageContext();
+  fixedImage = UIGraphicsGetImageFromCurrentImageContext();
   UIGraphicsEndImageContext();
 
   // The resulting data is a JPEG image, so we need to convert it to PNG representation
